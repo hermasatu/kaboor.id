@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Runlog — Running Performance</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--ink:#202923;--muted:#718078;--line:#e3e9e4;--paper:#f6f8f5;--green:#547b62;--pale:#e8f0e9}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 system-ui,sans-serif}.shell{max-width:1150px;margin:auto;padding:22px}header,.head,.activity{display:flex;justify-content:space-between;align-items:center;gap:12px}header{margin-bottom:24px}.brand{display:flex;gap:10px;align-items:center}.mark{background:var(--ink);color:white;border-radius:12px;padding:10px 14px;font-weight:800}.muted,.hint{color:var(--muted);font-size:12px}.layout{display:grid;grid-template-columns:190px 1fr;gap:18px}.side,.card{background:white;border:1px solid var(--line);border-radius:15px;padding:16px}.side{height:max-content}.nav{display:block;width:100%;border:0;background:transparent;text-align:left;padding:10px;border-radius:9px;color:var(--muted);cursor:pointer}.nav.active,.nav:hover{background:var(--pale);color:var(--ink);font-weight:700}.btn{background:var(--ink);color:white;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:650}.btn.alt{background:white;color:var(--ink);border:1px solid var(--line)}.btn.green{background:var(--green)}.btn:disabled{opacity:.55;cursor:wait}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:14px 0}.metric{font-size:27px;font-weight:750;margin:4px 0}.label{font-size:12px;color:var(--muted)}.two{display:grid;grid-template-columns:1.2fr .8fr;gap:12px}.section{font-size:15px;margin:0 0 12px}.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:5px}.field.full{grid-column:1/-1}label{font-size:12px;color:#5e6b63;font-weight:650}input,select,textarea{border:1px solid #dce4dd;border-radius:9px;padding:10px;background:white;font:inherit;width:100%;min-width:0}textarea{min-height:70px}.hidden{display:none!important}.table{overflow:auto}table{border-collapse:collapse;width:100%;font-size:13px}td,th{text-align:left;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:11px;color:var(--muted)}.activity{padding:10px 0;border-top:1px solid var(--line)}.notice{background:#f1f4ef;padding:12px;border-radius:10px;font-size:13px;color:#5b695f}.auth{max-width:400px;margin:10vh auto}.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:white;padding:10px 16px;border-radius:10px;z-index:9}.empty{text-align:center;padding:20px;color:var(--muted)}
+.ocr{background:#eef6ef;border-color:#9fbea8}.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:700;background:var(--pale);color:var(--ink);white-space:nowrap}.pill.warn{background:#fbf1dc;color:#7a5a12}.pill.bad{background:#f8e3e1;color:#8a2f25}.steps{margin:8px 0;padding-left:20px;font-size:14px}.steps li{margin:3px 0}.pts{margin:6px 0 0;padding-left:18px;font-size:13px;color:#46524a}details summary{cursor:pointer;font-size:12px;color:var(--muted)}.sub{font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 4px}.drop{outline:2px dashed var(--green);outline-offset:3px}pre.raw{white-space:pre-wrap;font-size:11px;max-height:180px;overflow:auto;background:white;border:1px solid var(--line);border-radius:8px;padding:8px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.side{display:flex;overflow:auto;padding:6px}.nav{white-space:nowrap;width:auto}.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}@media(max-width:500px){.shell{padding:12px}.form{grid-template-columns:1fr}.field.full{grid-column:auto}.grid{gap:7px}.metric{font-size:22px}}
+</style></head><body>
+<div id="auth" class="card auth hidden"><div class="brand"><div class="mark">R</div><div><b>Runlog</b><div class="muted">Running Performance System</div></div></div><h2>Masuk / Daftar</h2><p class="muted">Data latihan disimpan privat pada akunmu.</p><form id="authForm" class="form"><div class="field full"><label>Email</label><input id="email" type="email" required></div><div class="field full"><label>Password (min. 8 karakter)</label><input id="password" type="password" minlength="8" required></div><div class="field full"><button class="btn">Masuk / Daftar</button></div></form></div>
+<div id="app" class="shell hidden"><header><div class="brand"><div class="mark">R</div><div><b>Runlog</b><div class="muted">Running Performance System · Coach mode</div></div></div><div><span id="emailLabel" class="muted"></span> <button id="logout" class="btn alt">Keluar</button></div></header>
+<div class="layout"><aside class="side"><button class="nav active" data-page="dashboard">Ringkasan</button><button class="nav" data-page="activities">Aktivitas</button><button class="nav" data-page="body">Berat & tubuh</button><button class="nav" data-page="wellness">Recovery</button><button class="nav" data-page="profile">Profil & target</button></aside><main>
+<section id="dashboard"><div class="head"><div><h2>Ringkasan latihan</h2><div class="muted" id="today"></div></div><button class="btn green" data-open="activities">+ Catat lari</button></div><div class="grid"><div class="card"><div class="label">Jarak minggu ini</div><div class="metric" id="kmWeek">0.0 km</div><div class="hint">Senin–Minggu</div></div><div class="card"><div class="label">Sesi minggu ini</div><div class="metric" id="sessions">0</div><div class="hint" id="sessHint">Target 3 sesi</div></div><div class="card"><div class="label">Berat terakhir</div><div class="metric" id="weight">—</div><div class="hint" id="weightHint">Input manual</div></div><div class="card"><div class="label">Program</div><div class="metric" id="dayNo">90 hari</div><div class="hint" id="phaseHint">Program awal</div></div></div><div class="two"><div class="card" id="coach"><div class="empty">Memuat saran…</div></div><div class="card"><h3 class="section">Aktivitas terbaru</h3><div id="recent" class="empty">Belum ada aktivitas.</div><button class="btn alt" data-open="wellness" style="margin-top:12px" title="Tidur, resting HR, lelah & ankle ikut menentukan saran">Isi recovery</button></div></div></section>
+<section id="activities" class="hidden"><div class="head"><div><h2>Aktivitas lari</h2><p class="muted">Catat metrik utama setelah latihan.</p></div><button class="btn alt" id="reloadActs" title="Ambil ulang data dari server">Muat ulang</button></div><div class="card" id="actCard" style="margin:14px 0"><div class="head"><h3 class="section">Tambah aktivitas</h3><div><button type="button" class="btn alt" id="ocrBtn" title="Pilih 1–3 screenshot Huawei Health. Dibaca di perangkat ini (tanpa AI). Bisa juga tempel (Ctrl+V) atau seret gambar ke sini.">📷 Baca screenshot</button><input id="ocrFile" type="file" accept="image/*" multiple hidden></div></div><div id="ocrNote" class="notice hidden" style="margin-bottom:12px"></div><form id="actForm" class="form">
+<div class="field"><label>Tanggal & waktu *</label><input name="started_at" type="datetime-local" required></div><div class="field"><label>Jenis</label><select name="activity_type"><option value="run">Lari</option><option value="trail_run">Trail run</option><option value="walk">Jalan</option><option value="run_walk">Run / walk</option><option value="other">Lainnya</option></select></div>
+<div class="field"><label>Jarak (km) *</label><input name="distance_km" type="number" min=".01" step=".01" inputmode="decimal" required></div><div class="field"><label>Durasi * <span class="hint" id="paceHint"></span></label><input name="duration" type="text" inputmode="numeric" placeholder="33:59 (atau 33.98 menit)" title="Format jam:menit:detik / menit:detik, atau menit desimal" required></div>
+<div class="field"><label>HR rata-rata (bpm)</label><input name="avg_hr" type="number" min="30" max="240"></div><div class="field"><label>HR maksimum (bpm)</label><input name="max_hr" type="number" min="30" max="250"></div>
+<div class="field"><label title="1 = sangat ringan, 10 = maksimal">RPE (1–10)</label><input name="rpe" type="number" min="1" max="10"></div><div class="field"><label>Elevation gain (m)</label><input name="elevation_gain_m" type="number" min="0"></div>
+<div class="field"><label>Cadence (spm)</label><input name="avg_cadence" type="number" min="0" max="250"></div><div class="field"><label>VO₂ Max perangkat</label><input name="vo2_max" type="number" min="10" max="100" step=".1"></div>
+<div class="field"><label>Kondisi ankle</label><select name="ankle_status"><option value="">Tidak diisi</option><option value="no_pain">Tidak sakit</option><option value="mild">Sedikit terasa</option><option value="pain">Sakit</option></select></div><div class="field"><label>Talk test</label><select name="talk_test"><option value="">Tidak diisi</option><option value="easy_conversation">Bisa bicara lancar</option><option value="broken_speech">Bicara terputus</option><option value="few_words">Hanya beberapa kata</option></select></div>
+<div class="field"><label>Kalori (kkal)</label><input name="calories_kcal" type="number" min="0" max="10000"></div><div class="field"></div>
+<div class="field full"><label>Catatan</label><textarea name="notes"></textarea></div><div class="field full"><button class="btn green" id="saveAct">Simpan aktivitas</button></div></form></div><div class="card"><h3 class="section">Riwayat aktivitas</h3><div class="table"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Jarak</th><th>Durasi</th><th>Pace</th><th>HR</th><th></th></tr></thead><tbody id="actRows"></tbody></table></div></div></section>
+<section id="body" class="hidden"><h2>Berat & tubuh</h2><div class="card" style="margin:14px 0"><form id="bodyForm" class="form"><div class="field"><label>Tanggal *</label><input name="measured_at" type="date" required></div><div class="field"><label>Berat (kg) *</label><input name="weight_kg" type="number" min="20" max="300" step=".1" required></div><div class="field"><label>Pinggang (cm)</label><input name="waist_cm" type="number" min="30" max="250" step=".1"></div><div class="field"><label>Body fat (%)</label><input name="body_fat_pct" type="number" min="1" max="70" step=".1"></div><div class="field"><label>Muscle mass (kg)</label><input name="muscle_mass_kg" type="number" min="1" max="150" step=".1"></div><div class="field"><label>Catatan</label><input name="notes"></div><div class="field full"><button class="btn green">Simpan pengukuran</button></div></form></div><div class="card"><h3 class="section">Riwayat berat</h3><div class="table"><table><thead><tr><th>Tanggal</th><th>Berat</th><th>Pinggang</th><th>Body fat</th></tr></thead><tbody id="bodyRows"></tbody></table></div></div></section>
+<section id="wellness" class="hidden"><h2>Recovery harian</h2><p class="muted">Isi singkat untuk membantu evaluasi kesiapan latihan.</p><div class="card"><form id="wellForm" class="form"><div class="field"><label>Tanggal *</label><input name="recorded_on" type="date" required></div><div class="field"><label>Durasi tidur (jam)</label><input name="sleep_hours" type="number" min="0" max="24" step=".1"></div><div class="field"><label>Kualitas tidur (1–5)</label><input name="sleep_quality" type="number" min="1" max="5"></div><div class="field"><label title="Ukur saat bangun tidur">Resting HR</label><input name="resting_hr" type="number" min="30" max="150"></div><div class="field"><label>HRV (ms)</label><input name="hrv_ms" type="number" min="1" max="300"></div><div class="field"><label>Fatigue (1–10)</label><input name="fatigue" type="number" min="1" max="10"></div><div class="field"><label>Soreness (1–10)</label><input name="soreness" type="number" min="1" max="10"></div><div class="field"><label>Stress (1–10)</label><input name="stress" type="number" min="1" max="10"></div><div class="field"><label>Langkah harian</label><input name="steps" type="number" min="0"></div><div class="field"><label>Status ankle</label><select name="ankle_status"><option value="">Tidak diisi</option><option value="no_pain">Tidak sakit</option><option value="mild">Sedikit terasa</option><option value="pain">Sakit</option></select></div><div class="field full"><label>Catatan</label><textarea name="notes"></textarea></div><div class="field full"><button class="btn green">Simpan recovery</button></div></form></div></section>
+<section id="profile" class="hidden"><h2>Profil & target</h2><p class="muted">Baseline awal dapat dilengkapi bertahap.</p><div class="card"><form id="profileForm" class="form"><div class="field"><label>Nama tampilan</label><input name="display_name"></div><div class="field"><label title="Dipakai menghitung HR maksimum & batas HR easy">Tanggal lahir</label><input name="birth_date" type="date"></div><div class="field"><label>Tinggi (cm)</label><input name="height_cm" type="number" min="100" max="230" step=".1"></div><div class="field"><label>Target berat (kg)</label><input name="target_weight_kg" type="number" min="30" max="250" step=".1"></div><div class="field"><label>Target 5K (menit)</label><input name="target_5k_minutes" type="number" min="10" max="90" step=".1"></div><div class="field"><label>Zona waktu</label><input name="timezone" value="Asia/Jakarta"></div><div class="field full"><button class="btn green">Simpan profil</button></div></form></div></section>
+</main></div></div><div id="toast" class="toast hidden"></div>
+<script>
+(() => {
+ // ================== KONFIGURASI ==================
+ // Isi URL + anon/publishable key dari Supabase Project Settings > API.
+ const SB_URL='https://YOUR_PROJECT.supabase.co', SB_KEY='YOUR_SUPABASE_ANON_KEY';
+ // Program 90 hari: Day 1 = 4 Nov 2026. Sesi: Selasa (trail BHHH), Kamis, Sabtu.
+ const PLAN={start:'2026-11-04',days:90,
+  sat:[30,35,40,30,40,45,50,38,45,50,55,40,30],   // target menit Sabtu per minggu program (1..13)
+  thu:[0,25,30,25,30,35,35,30,35,40,40,30,25],    // target menit Kamis
+  deload:[3,7,11]};                                // index minggu ringan (minggu 4, 8, 12)
+ const TESS='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+ // =================================================
+
+ const ready=!SB_URL.includes('YOUR_PROJECT')&&!SB_KEY.includes('YOUR_');
+ const db=ready?window.supabase.createClient(SB_URL,SB_KEY):null;let user=null;
+ const S={acts:[],body:[],well:[],profile:null,loaded:false}; // cache lokal: 1x muat, render dari sini
+ const $=id=>document.getElementById(id);
+ const DAY=864e5;
+ const pad=x=>String(x).padStart(2,'0');
+ const ymd=d=>{d=new Date(d);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+ const d0=x=>{if(typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)){const[a,b,c]=x.split('-').map(Number);return new Date(a,b-1,c)}const d=new Date(x);d.setHours(0,0,0,0);return d};
+ const addD=(d,n)=>{d=d0(d);d.setDate(d.getDate()+n);return d};
+ const diffD=(a,b)=>Math.round((d0(a)-d0(b))/DAY);
+ const today=()=>ymd(new Date());
+ const dtLocal=d=>{d=new Date(d);return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`};
+ const toast=m=>{$('toast').textContent=m;$('toast').classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>$('toast').classList.add('hidden'),3500)};
+ const v=(f,k)=>{const x=f.elements[k]?.value;return x===''||x==null?null:x}, n=(f,k)=>v(f,k)===null?null:Number(v(f,k));
+ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+ const median=a=>{const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length?(s.length%2?s[m]:(s[m-1]+s[m])/2):null};
+ const paceMin=(km,sec)=>sec/60/km;
+ const pStr=p=>{const s=Math.round(p*60);return `${Math.floor(s/60)}:${pad(s%60)}`};
+ const pace=(km,sec)=>`${pStr(paceMin(km,sec))}/km`;
+ const dur=s=>`${Math.floor(s/3600)?Math.floor(s/3600)+'j ':''}${Math.floor(s%3600/60)}m`;
+ const hms=s=>{s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${pad(m)}:${pad(x)}`:`${m}:${pad(x)}`};
+ const parseDur=s=>{s=String(s||'').trim().replace(',','.');if(!s)return null;if(s.includes(':')){const p=s.split(':').map(Number);if(p.some(isNaN)||p.length>3)return null;return p.length===3?p[0]*3600+p[1]*60+p[2]:p[0]*60+p[1]}const m=Number(s);return isFinite(m)&&m>0?Math.round(m*60):null};
+ const fmtDate=d=>d0(d).toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'short'});
+ const labels={run:'Lari',trail_run:'Trail run',walk:'Jalan',run_walk:'Run / walk',other:'Lainnya'};
+ const byDateDesc=(k)=>(a,b)=>new Date(b[k])-new Date(a[k]);
+
+ // ================== COACH ENGINE (lokal, tanpa AI) ==================
+ const dayNo=d=>diffD(d,PLAN.start)+1;
+ const wkIdx=d=>{const m=d0(PLAN.start);m.setDate(m.getDate()-(m.getDay()+6)%7);return Math.floor(diffD(d,m)/7)};
+ const slotOf=d=>({2:'tue',4:'thu',6:'sat'})[d0(d).getDay()]||null;
+ const phaseOf=day=>day<=30?1:day<=60?2:3, PHASE=['','Foundation','Development','Performance'];
+ const isRoad=a=>['run','run_walk'].includes(a.activity_type);
+
+ function hrModel(){ // HRmax (Tanaka) + resting HR → batas HR easy (Karvonen 70%)
+  const p=S.profile||{},age=p.birth_date?(Date.now()-d0(p.birth_date))/(365.25*DAY):null;
+  let max=age?Math.round(208-.7*age):185;const obs=Math.max(0,...S.acts.map(a=>a.max_hr||0));if(obs>max)max=obs;
+  const rh=S.well.filter(w=>w.resting_hr).slice(0,14).map(w=>w.resting_hr),rhr=rh.length?Math.round(median(rh)):null;
+  const cap=Math.round(rhr?rhr+.7*(max-rhr):.78*max);
+  return{max,rhr,cap,est:!age}
+ }
+ const rpeOf=a=>a.rpe||(a.activity_type==='trail_run'?5:a.activity_type==='walk'?2:4);
+ const loadOf=a=>a.duration_seconds/60*rpeOf(a); // session-RPE load
+ function acwr(ref){ // beban 7 hari vs rata-rata mingguan 28 hari
+  if(!S.acts.length)return null;const first=S.acts[S.acts.length-1].started_at;if(diffD(ref,first)<21)return null;
+  let ac=0,ch=0;S.acts.forEach(a=>{const k=diffD(ref,a.started_at);if(k>=0&&k<7)ac+=loadOf(a);if(k>=0&&k<28)ch+=loadOf(a)});ch/=4;return ch?ac/ch:null
+ }
+ function judge(a,hr){ // 0 = sesuai, 1 = agak keras, 2 = terlalu keras
+  const trail=a.activity_type==='trail_run',walk=a.activity_type==='walk',q=['quality','test'].includes(a.coach?.plan?.kind);
+  let lvl=0;const why=[],up=x=>{lvl=Math.max(lvl,x)};
+  if(a.rpe>=(q?9:trail?8:7)){up(2);why.push(`RPE ${a.rpe}`)}else if(a.rpe>=(q?8:trail?7:5)){up(1);why.push(`RPE ${a.rpe}`)}
+  if(!q&&a.talk_test==='few_words'){up(2);why.push('hanya bisa beberapa kata')}else if(!q&&a.talk_test==='broken_speech'){up(1);why.push('bicara terputus')}
+  if(a.avg_hr&&!walk&&!q){const lim=hr.cap+(trail?15:0),o=a.avg_hr-lim;if(o>8){up(2);why.push(`HR ${a.avg_hr} > batas ${lim}`)}else if(o>3){up(1);why.push(`HR ${a.avg_hr} sedikit di atas ${lim}`)}}
+  return{lvl,why}
+ }
+ const ef=a=>a.avg_hr&&isRoad(a)?(a.distance_km*1000/(a.duration_seconds/60))/a.avg_hr:null; // meter per detak
+ function lastAnkle(){
+  return [...S.acts.filter(a=>a.ankle_status).map(a=>({d:a.started_at,s:a.ankle_status})),...S.well.filter(w=>w.ankle_status).map(w=>({d:w.recorded_on,s:w.ankle_status}))].sort((x,y)=>d0(y.d)-d0(x.d)||(y.s==='pain')-(x.s==='pain'))[0]||null
+ }
+ function readiness(ref){
+  const hr=hrModel(),R={factor:1,bonus:1,quality:true,rest:false,noProg:false,flags:[],hr};
+  const cut=(f,msg,q)=>{R.factor=Math.min(R.factor,f);if(q)R.quality=false;R.flags.push(msg)};
+  const ank=lastAnkle();
+  if(ank&&diffD(ref,ank.d)<=4&&diffD(ref,ank.d)>=0){if(ank.s==='pain'){R.rest=true;R.flags.push('Ankle sakit — lari dihentikan sampai bebas nyeri 2 hari')}else if(ank.s==='mild')cut(.8,'Ankle sedikit terasa — volume −20%, permukaan rata',true)}
+  const w=S.well.find(x=>{const k=diffD(ref,x.recorded_on);return k>=0&&k<=1});
+  if(w){
+   if(w.fatigue>=8||w.soreness>=8||(w.sleep_hours!=null&&w.sleep_hours<5))cut(.6,'Recovery rendah (lelah / pegal / tidur kurang)',true);
+   else if(w.fatigue>=6||w.soreness>=6||(w.sleep_hours!=null&&w.sleep_hours<6)||w.stress>=8)cut(.85,'Recovery kurang optimal',true);
+   const base=median(S.well.filter(x=>x!==w&&x.resting_hr).slice(0,14).map(x=>x.resting_hr));
+   if(w.resting_hr&&base&&w.resting_hr>=base+7)cut(.8,`Resting HR ${w.resting_hr} (normal ±${Math.round(base)}) — tanda kurang pulih`,true);
+  }
+  const past=S.acts.filter(a=>d0(a.started_at)<=d0(ref));
+  if(past[0]){const g=diffD(ref,past[0].started_at);if(g>=10)cut(.75,`Jeda ${g} hari — mulai lagi lebih ringan`,true)}
+  const r=acwr(ref);R.acwr=r;
+  if(r!=null){if(r>1.5)cut(.75,`Beban 7 hari melonjak (rasio ${r.toFixed(2)})`,true);else if(r>1.3)cut(.9,`Beban naik cepat (rasio ${r.toFixed(2)})`)}
+  const lastRun=past.find(a=>a.activity_type!=='walk');
+  if(lastRun){const j=judge(lastRun,hr);if(j.lvl===2){R.quality=false;R.noProg=true;R.flags.push('Sesi terakhir terlalu berat — beban ditahan')}else if(j.lvl===1){R.noProg=true;R.flags.push('Sesi terakhir agak keras — pelankan pace')}}
+  const road=past.filter(isRoad).slice(0,2);
+  if(road.length===2&&!R.noProg&&R.factor===1&&(r==null||r<=1.2)&&road.every(a=>judge(a,hr).lvl===0&&(a.rpe==null||a.rpe<=4)&&a.ankle_status!=='mild'&&a.ankle_status!=='pain')){R.bonus=1.1;R.flags.push('2 sesi terakhir terasa ringan — durasi +10%')}
+  return R
+ }
+ function easyPace(hr){
+  const p=S.acts.filter(a=>isRoad(a)&&a.avg_hr&&a.avg_hr<=hr.cap+3).slice(0,5).map(a=>paceMin(a.distance_km,a.duration_seconds));
+  if(!p.length)return null;const m=median(p);return `${pStr(m-.25)}–${pStr(m+.25)}/km`
+ }
+ function structure(R){ // jog/jalan sesuai preferensi "jogging + semi lari"
+  const hr=R.hr,road=S.acts.filter(isRoad),last=road[0];
+  if(road.length<3||R.factor<1||!last||last.activity_type==='run_walk'||judge(last,hr).lvl>0)return 'Jog 4 menit + jalan 1 menit, ulangi';
+  return 'Jog santai kontinu (jalan sebentar bila HR naik)'
+ }
+ function prescribe(date,R){
+  const d=d0(date),day=dayNo(d),wk=wkIdx(d),ph=phaseOf(day),slot=slotOf(d),hr=R.hr;
+  const P={date:ymd(d),day,wk:wk+1,ph,slot,kind:'easy',mins:null,steps:[],why:[...R.flags],hrCap:hr.cap,pace:null,title:''};
+  if(day<1){P.kind='wait';P.title='Program belum dimulai';return P}
+  if(day>PLAN.days){P.kind='done';P.title='Program 90 hari selesai';P.steps=['Evaluasi akhir: berat, resting HR, VO₂ Max, pace easy','Tentukan target fase berikutnya'];return P}
+  if(R.rest){P.kind='rest';P.title='Istirahat aktif (ankle)';P.steps=['Jalan santai 15–20 menit bila tidak nyeri','Mobility pergelangan kaki 5–10 menit','Nyeri lebih dari 3 hari atau bengkak → periksa ke fisioterapis/dokter'];return P}
+  const deload=PLAN.deload.includes(wk),adj=R.factor*R.bonus,r5=x=>Math.max(15,Math.round(x/5)*5),rw=structure(R);
+  P.pace=easyPace(hr);
+  if(deload)P.why.push('Minggu ringan (deload) — tubuh beradaptasi');
+  if(slot==='tue'){
+   P.kind='trail';P.title='BHHH Bogor hash trail';P.hrCap=hr.cap+15;P.pace=null;
+   P.steps=R.factor<.85?['Ikut sebagai hike / jalan cepat, jangan lari','Hindari turunan curam, prioritaskan ankle']:['Trail santai ± 5–8 km, jalan di setiap tanjakan',`Di jalur datar jaga HR ≤ ${hr.cap+15} bpm`,'Turunan: langkah pendek & kontrol ankle'];
+   return P}
+  if(slot==='sat'){
+   if(wk===12&&day>=88&&R.quality&&R.factor===1){P.kind='test';P.title=`Tes 5K (Day ${day})`;P.hrCap=null;P.pace=null;P.steps=['Pemanasan 10 menit jalan + jog','5K usaha stabil (RPE 7–8), 1 km pertama paling pelan','Pendinginan 10 menit jalan'];return P}
+   P.kind='long';P.mins=r5((PLAN.sat[wk]??30)*adj);P.title=`Endurance ${P.mins} menit`;
+   P.steps=['Pemanasan 5 menit jalan cepat',`${rw} — total ${P.mins} menit`,`HR ≤ ${hr.cap} bpm, masih bisa bicara kalimat lengkap`];
+   return P}
+  P.mins=r5((PLAN.thu[wk]||25)*adj);const okQ=R.quality&&!deload&&slot==='thu';
+  if(ph===2&&okQ){P.kind='strides';P.title=`Easy ${P.mins} menit + 4×1 menit`;P.steps=['Jog santai 10 menit','4 × 1 menit sedikit lebih cepat (RPE 6), jeda 2 menit jog/jalan',`Sisa waktu jog santai, HR ≤ ${hr.cap}`]}
+  else if(ph===3&&okQ){P.kind='quality';P.hrCap=null;if(wk%2){P.title=`Tempo ${P.mins} menit`;P.steps=['Pemanasan 10 menit jog','3 × 5 menit usaha stabil (RPE 6–7), jeda 2 menit jog','Pendinginan 5–10 menit']}else{P.title=`Interval ${P.mins} menit`;P.steps=['Pemanasan 10 menit jog','6 × 2 menit cepat terkontrol (RPE 7), jeda 2 menit jalan/jog','Pendinginan 5–10 menit']}}
+  else{P.kind='easy';P.title=`Easy run ${P.mins} menit`;P.steps=[`${rw} — total ${P.mins} menit`,`HR ≤ ${hr.cap} bpm`]}
+  if(!slot)P.why.push('Di luar jadwal Selasa/Kamis/Sabtu — sesi ekstra dibuat ringan');
+  return P
+ }
+ function nextDate(){
+  const done=new Set(S.acts.map(a=>ymd(a.started_at)));let d=d0(new Date());if(d<d0(PLAN.start))d=d0(PLAN.start);
+  for(let i=0;i<14;i++){if(slotOf(d)&&!done.has(ymd(d)))return d;d=addD(d,1)}return d0(new Date())
+ }
+ function evaluate(a){
+  const hr=hrModel(),j=judge(a,hr),pts=[],plan=a.coach?.plan,mins=a.duration_seconds/60;let tone='';
+  if(a.ankle_status==='pain'){tone='bad';pts.push('Ankle sakit — sesi berikutnya diganti istirahat aktif')}
+  else if(a.ankle_status==='mild'){tone='warn';pts.push('Ankle sedikit terasa — volume dikurangi, hindari turunan')}
+  if(j.lvl===0)pts.push(a.activity_type==='trail_run'?'Intensitas trail terkendali':'Intensitas sesuai (easy)');
+  else{tone=tone||(j.lvl===2?'bad':'warn');pts.push((j.lvl===2?'Terlalu keras: ':'Agak keras: ')+j.why.join(', '))}
+  if(plan&&plan.mins){const r=mins/plan.mins;pts.push(r>1.2?`Durasi ${Math.round(mins)} mnt melebihi target ${plan.mins} — cukup sesuai target`:r<.7?`Durasi ${Math.round(mins)} mnt, di bawah target ${plan.mins}`:`Durasi sesuai target (${Math.round(mins)}/${plan.mins} mnt)`)}
+  const e=ef(a),hist=S.acts.filter(x=>ef(x)&&x.id!==a.id).sort(byDateDesc('started_at')).reverse();
+  if(e&&hist.length>=3){const b=(ef(hist[0])+ef(hist[1])+ef(hist[2]))/3,pc=(e/b-1)*100;pts.push(`Efisiensi aerobik ${pc>=0?'+':''}${pc.toFixed(1)}% vs awal program`)}
+  if(a.avg_cadence&&a.avg_cadence<160&&a.activity_type!=='walk')pts.push(`Cadence ${a.avg_cadence} spm — coba ±${Math.round(a.avg_cadence*1.05)} dengan langkah lebih pendek`);
+  if(a.rpe==null||!a.talk_test||!a.ankle_status)pts.push('Lengkapi RPE, talk test & ankle agar saran lebih akurat');
+  return{tone:tone||'',verdict:tone==='bad'?'Perlu perhatian':tone==='warn'?'Cukup, ada catatan':'Bagus',pts}
+ }
+ function milestone(){const d=dayNo(new Date());for(const m of [30,60,90])if(Math.abs(d-m)<=3)return `Evaluasi Day ${m}: timbang berat & lingkar pinggang, catat resting HR dan VO₂ Max`;return null}
+
+ // ================== RENDER ==================
+ async function rows(table,order,limit=300){const r=await db.from(table).select('*').order(order,{ascending:false}).limit(limit);if(r.error)throw r.error;return r.data||[]}
+ async function loadAll(){
+  const [a,b,w,p]=await Promise.all([rows('activities','started_at',400),rows('body_metrics','measured_at',200),rows('daily_wellness','recorded_on',120),db.from('profiles').select('*').maybeSingle()]);
+  if(p.error)throw p.error;Object.assign(S,{acts:a,body:b,well:w,profile:p.data,loaded:true})
+ }
+ function page(p){document.querySelectorAll('main section').forEach(x=>x.classList.add('hidden'));$(p).classList.remove('hidden');document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===p));({dashboard,activities,body:bodyRows,profile:loadProfile})[p]?.()}
+ document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>page(b.dataset.page));document.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>page(b.dataset.open));
+ async function start(){if(!ready){$('auth').classList.remove('hidden');$('auth').querySelector('p').textContent='Konfigurasi belum diisi. Edit SB_URL dan SB_KEY di script index.html.';return}let {data:{session}}=await db.auth.getSession();if(session)enter(session.user);else $('auth').classList.remove('hidden');db.auth.onAuthStateChange((e,s)=>{if(s){if(!user)enter(s.user)}else{user=null;$('app').classList.add('hidden');$('auth').classList.remove('hidden')}})}
+ async function enter(u){user=u;$('auth').classList.add('hidden');$('app').classList.remove('hidden');$('emailLabel').textContent=u.email||'';$('today').textContent=new Date().toLocaleDateString('id-ID',{dateStyle:'full'});try{await loadAll()}catch(e){toast(e.message)}page('dashboard')}
+ $('authForm').onsubmit=async e=>{e.preventDefault();try{let email=$('email').value.trim(),password=$('password').value;let r=await db.auth.signInWithPassword({email,password});if(r.error&&/invalid login credentials/i.test(r.error.message))r=await db.auth.signUp({email,password});if(r.error)throw r.error;if(!r.data.session){toast('Akun dibuat. Periksa email konfirmasi.');return}enter(r.data.user)}catch(x){toast(x.message)}};
+ $('logout').onclick=()=>db.auth.signOut();
+
+ function dashboard(){
+  const a=S.acts,b=S.body,monday=d0(new Date());monday.setDate(monday.getDate()-(monday.getDay()+6)%7);
+  const w=a.filter(x=>new Date(x.started_at)>=monday);
+  $('kmWeek').textContent=w.reduce((s,x)=>s+Number(x.distance_km),0).toFixed(1)+' km';$('sessions').textContent=w.length;$('sessHint').textContent='Target 3 sesi (Sel/Kam/Sab)';
+  $('weight').textContent=b[0]?Number(b[0].weight_kg).toFixed(1)+' kg':'—';
+  if(b[0]&&b[b.length-1]&&b.length>1){const dlt=b[0].weight_kg-b[b.length-1].weight_kg;$('weightHint').textContent=`${dlt>0?'+':''}${dlt.toFixed(1)} kg sejak ${b[b.length-1].measured_at}`}
+  const dn=dayNo(new Date());$('dayNo').textContent=dn<1?'Belum mulai':dn>PLAN.days?'Selesai':`Day ${dn}/${PLAN.days}`;$('phaseHint').textContent=dn>=1&&dn<=PLAN.days?`Fase ${phaseOf(dn)} · ${PHASE[phaseOf(dn)]}`:'Program 90 hari';
+  $('recent').className=a.length?'':'empty';
+  $('recent').innerHTML=a.slice(0,5).map(x=>`<div class="activity"><div><b>${labels[x.activity_type]||x.activity_type} · ${Number(x.distance_km).toFixed(2)} km</b><div class="muted">${new Date(x.started_at).toLocaleDateString('id-ID')} · ${pace(x.distance_km,x.duration_seconds)}</div></div><span class="hint">${x.avg_hr?x.avg_hr+' bpm':''}${x.source==='huawei'?' · HW':''}</span></div>`).join('')||'Belum ada aktivitas.';
+  renderCoach();
+ }
+ function renderCoach(){
+  const R=readiness(new Date()),nd=nextDate(),P=prescribe(nd,R),hr=R.hr,isToday=ymd(nd)===today();
+  let h=`<div class="head"><h3 class="section">Sesi berikutnya</h3><span class="pill">${isToday?'Hari ini':esc(fmtDate(nd))}</span></div>`;
+  h+=`<b>${esc(P.title)}</b>${P.steps.length?`<ol class="steps">${P.steps.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>`:''}`;
+  const meta=[P.hrCap?`HR ≤ ${P.hrCap} bpm`:'',P.pace?`pace ± ${P.pace}`:'',P.day>=1&&P.day<=PLAN.days?`Day ${P.day} · minggu ${P.wk}`:''].filter(Boolean);
+  if(meta.length)h+=`<div class="muted" title="Batas HR easy dihitung dari HR maks${hr.est?' (estimasi 185 — isi tanggal lahir di Profil)':''}${hr.rhr?' & resting HR '+hr.rhr:''}. Pace hanya panduan, HR & talk test lebih penting.">${meta.join(' · ')}</div>`;
+  if(P.why.length)h+=`<details style="margin-top:6px"><summary>Kenapa sesi ini?</summary><ul class="pts">${P.why.map(s=>`<li>${esc(s)}</li>`).join('')}</ul></details>`;
+  if(!isToday&&!slotOf(new Date())&&dayNo(new Date())>=1)h+=`<div class="notice" style="margin-top:10px" title="Calf raise, glute bridge, squat nyaman, single-leg balance — 2 set masing-masing">Hari ini: istirahat atau strength ringan 10–15 menit</div>`;
+  const ms=milestone();if(ms)h+=`<div class="notice" style="margin-top:10px">${esc(ms)}</div>`;
+  const last=S.acts[0];
+  if(last){const E=evaluate(last);h+=`<div class="sub">Evaluasi terakhir · ${new Date(last.started_at).toLocaleDateString('id-ID',{day:'numeric',month:'short'})}</div><span class="pill ${E.tone}">${E.verdict}</span><ul class="pts">${E.pts.map(s=>`<li>${esc(s)}</li>`).join('')}</ul>`}
+  // minggu ini
+  const mon=d0(new Date());mon.setDate(mon.getDate()-(mon.getDay()+6)%7);const done=new Map(S.acts.map(a=>[ymd(a.started_at),a]));
+  const wk=[1,3,5].map(o=>addD(mon,o)).filter(d=>dayNo(d)>=1&&dayNo(d)<=PLAN.days);
+  if(wk.length){h+=`<div class="sub">Minggu ini</div>`+wk.map(d=>{const a=done.get(ymd(d)),past=d<d0(new Date());const st=a?`<span class="pill">✓ ${Number(a.distance_km).toFixed(1)} km</span>`:past?'<span class="pill warn" title="Jangan diganti dengan latihan dobel">Terlewat</span>':`<span class="hint">${esc(prescribe(d,R).title)}</span>`;return `<div class="activity"><span>${esc(fmtDate(d))}</span>${st}</div>`}).join('')}
+  $('coach').innerHTML=h;
+ }
+ function activities(){
+  const a=S.acts;$('actRows').innerHTML=a.map(x=>`<tr><td>${new Date(x.started_at).toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'})}</td><td>${labels[x.activity_type]||x.activity_type}${x.source==='huawei'?' <span class="hint">HW</span>':''}</td><td>${Number(x.distance_km).toFixed(2)} km</td><td>${dur(x.duration_seconds)}</td><td>${pace(x.distance_km,x.duration_seconds)}</td><td>${x.avg_hr??'—'}</td><td><button class="btn alt" data-del="${x.id}">Hapus</button></td></tr>`).join('')||'<tr><td colspan="7">Belum ada aktivitas.</td></tr>';
+  document.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{if(!confirm('Hapus aktivitas?'))return;let r=await db.from('activities').delete().eq('id',b.dataset.del);if(r.error)return toast(r.error.message);S.acts=S.acts.filter(x=>x.id!==b.dataset.del);toast('Dihapus');activities()})
+ }
+ $('reloadActs').onclick=async()=>{try{await loadAll();activities();toast('Data dimuat ulang')}catch(e){toast(e.message)}};
+
+ // ================== FORM AKTIVITAS + DRAFT LOKAL ==================
+ const F=$('actForm'),DRAFT='runlog_act_draft';
+ const paceHint=()=>{const km=n(F,'distance_km'),s=parseDur(v(F,'duration'));$('paceHint').textContent=km&&s?`· pace ${pace(km,s)}`:''};
+ const saveDraft=()=>{try{const o={src:F.dataset.src||'manual'};[...F.elements].forEach(e=>{if(e.name)o[e.name]=e.value});localStorage.setItem(DRAFT,JSON.stringify(o))}catch{}};
+ const clearForm=()=>{F.reset();F.dataset.src='manual';F.elements.started_at.value=dtLocal(new Date());[...F.elements].forEach(e=>{e.classList.remove('ocr');e.removeAttribute('data-ocr')});$('ocrNote').classList.add('hidden');paceHint();try{localStorage.removeItem(DRAFT)}catch{}};
+ (()=>{F.elements.started_at.value=dtLocal(new Date());try{const o=JSON.parse(localStorage.getItem(DRAFT)||'null');if(o){Object.entries(o).forEach(([k,x])=>{if(F.elements[k]&&x!=='')F.elements[k].value=x});F.dataset.src=o.src||'manual'}}catch{}paceHint()})();
+ F.addEventListener('input',e=>{e.target.classList.remove('ocr');paceHint();saveDraft()});F.addEventListener('change',saveDraft);
+ F.onsubmit=async e=>{e.preventDefault();const btn=$('saveAct');try{
+  const secs=parseDur(v(F,'duration'));if(!secs)throw new Error('Format durasi tidak valid. Contoh: 33:59 atau 1:05:20');
+  const started=new Date(v(F,'started_at')),km=n(F,'distance_km');
+  const plan=prescribe(started,readiness(started)); // rencana untuk tanggal itu, sebelum aktivitas ini masuk
+  const src=F.dataset.src==='huawei'?'huawei':'manual';
+  const p={user_id:user.id,started_at:started.toISOString(),activity_type:v(F,'activity_type'),distance_km:km,duration_seconds:secs,avg_hr:n(F,'avg_hr'),max_hr:n(F,'max_hr'),rpe:n(F,'rpe'),elevation_gain_m:n(F,'elevation_gain_m'),avg_cadence:n(F,'avg_cadence'),vo2_max:n(F,'vo2_max'),calories_kcal:n(F,'calories_kcal'),ankle_status:v(F,'ankle_status'),talk_test:v(F,'talk_test'),notes:v(F,'notes'),source:src,
+   external_id:src==='huawei'?`hw-${v(F,'started_at')}-${km}-${secs}`:null,
+   coach:{v:2,plan:{date:plan.date,kind:plan.kind,title:plan.title,mins:plan.mins,hrCap:plan.hrCap}}};
+  btn.disabled=true;
+  const r=await db.from('activities').insert(p).select().single(); // 1x kirim saat konfirmasi
+  if(r.error){if(r.error.code==='23505')throw new Error('Aktivitas dari screenshot ini sudah pernah disimpan');throw r.error}
+  S.acts.push(r.data);S.acts.sort(byDateDesc('started_at'));clearForm();toast('Aktivitas tersimpan — saran diperbarui');page('dashboard');
+ }catch(x){toast(x.message)}finally{btn.disabled=false}};
+
+ // ================== OCR LOKAL (Tesseract.js, berjalan di perangkat) ==================
+ let TW=null;
+ const loadScript=src=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=()=>no(new Error('Gagal memuat mesin OCR — cek koneksi internet'));document.head.appendChild(s)});
+ async function prep(file){ // grayscale, auto-invert dark mode, naikkan kontras
+  const img=await createImageBitmap(file),s=img.width<900?2:1,c=document.createElement('canvas');c.width=img.width*s;c.height=img.height*s;
+  const g=c.getContext('2d',{willReadFrequently:true});g.drawImage(img,0,0,c.width,c.height);const id=g.getImageData(0,0,c.width,c.height),d=id.data;let sum=0;
+  for(let i=0;i<d.length;i+=4){const y=.299*d[i]+.587*d[i+1]+.114*d[i+2];d[i]=y;sum+=y}
+  const dark=sum/(d.length/4)<110;
+  for(let i=0;i<d.length;i+=4){let y=d[i];if(dark)y=255-y;y=Math.max(0,Math.min(255,(y-128)*1.5+128));d[i]=d[i+1]=d[i+2]=y}
+  g.putImageData(id,0,0);return c
+ }
+ const FIELDS={ // kata kunci label Huawei Health (EN + ID)
+  duration:{keys:['workout duration','duration','durasi','total time','waktu olahraga','waktu latihan'],test:t=>/^\d{1,2}:\d{2}:\d{2}$/.test(t)||/^\d{1,3}:\d{2}$/.test(t)?parseDur(t):null},
+  pace:{keys:['average pace','avg. pace','avg pace','pace rata','kecepatan rata','tempo rata','rata-rata pace','pace'],not:['best','fastest','tercepat','terbaik'],test:t=>{const m=t.match(/^(\d{1,2})\s*'\s*(\d{2})/);if(!m)return null;const p=+m[1]+m[2]/60;return p>=3&&p<=25?p:null}},
+  distance:{keys:['distance','jarak','kilometers','kilometer'],test:t=>{const x=+t.replace(',','.');return /[.,]\d/.test(t)&&x>=.2&&x<=100?x:null}},
+  avg_hr:{keys:['average heart','avg. heart','avg heart','average hr','avg hr','detak jantung rata','denyut jantung rata','rata-rata detak','rata-rata denyut','hr rata'],test:t=>{const x=+t;return Number.isInteger(x)&&x>=60&&x<=220?x:null}},
+  avg_hr2:{keys:['heart rate','detak jantung','denyut jantung'],not:['max','maks','tertinggi','resting','istirahat','zone','zona'],test:t=>{const x=+t;return Number.isInteger(x)&&x>=60&&x<=220?x:null}},
+  max_hr:{keys:['max heart','max. heart','maximum heart','max hr','detak jantung maks','denyut jantung maks','detak jantung tertinggi','denyut jantung tertinggi'],test:t=>{const x=+t;return Number.isInteger(x)&&x>=80&&x<=230?x:null}},
+  avg_cadence:{keys:['average cadence','avg. cadence','avg cadence','kadens rata','irama rata','rata-rata kadens','rata-rata irama','frekuensi langkah rata','cadence','kadens','irama langkah'],not:['max','maks','tertinggi'],test:t=>{const x=+t;return Number.isInteger(x)&&x>=100&&x<=230?x:null}},
+  calories_kcal:{keys:['active calories','calories','kalori aktif','kalori'],test:t=>{const x=+t.replace(',','.');return x>=10&&x<=5000?Math.round(x):null}},
+  elevation_gain_m:{keys:['total ascent','elevation gain','ascent','total pendakian','pendakian','total kenaikan','kenaikan','total naik'],not:['descent','turun','penurunan'],test:t=>{const x=+t.replace(',','.');return x>=0&&x<=4000&&!t.includes(':')?Math.round(x):null}},
+  vo2_max:{keys:['vox max','voxmax','vox'],test:t=>{const x=+t.replace(',','.');return x>=20&&x<=90?x:null}}
+ };
+ const ALLKEYS=[...new Set(Object.values(FIELDS).flatMap(f=>f.keys))];
+ const TOK=/\d{1,2}:\d{2}:\d{2}|\d{1,3}:\d{2}|\d{1,2}\s*'\s*\d{2}\s*"?|\d+(?:[.,]\d+)?/g;
+ function parseHuawei(text){
+  const T=text.replace(/[‘’`´′]/g,"'").replace(/[“”″]/g,'"').replace(/''/g,'"').replace(/vo\s*[2₂z]\s*/gi,'VOX ');
+  const lines=T.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),low=lines.map(s=>s.toLowerCase()),out={};
+  const spans=s=>{const r=[];ALLKEYS.forEach(k=>{let i=s.indexOf(k);while(i>-1){r.push([i,i+k.length]);i=s.indexOf(k,i+1)}});r.sort((a,b)=>a[0]-b[0]||b[1]-a[1]);const m=[];r.forEach(x=>{const l=m[m.length-1];if(!l||x[0]>=l[1])m.push(x)});return m};
+  const pick=F=>{
+   for(const k of F.keys)for(let i=0;i<low.length;i++){
+    const idx=low[i].indexOf(k);if(idx<0)continue;const win=low[i].slice(Math.max(0,idx-6),idx+k.length+4);if((F.not||[]).some(z=>win.includes(z)))continue;
+    const sp=spans(low[i]),col=sp.filter(s=>s[1]<=idx).length,ncol=sp.length;
+    for(const o of [0,-1,1,-2,2]){const j=i+o;if(j<0||j>=lines.length)continue;
+     let toks;if(o===0){toks=(lines[i].slice(idx+k.length).match(TOK)||[])}else{const all=lines[j].match(TOK)||[];toks=col<all.length&&ncol>1?[all[col],...all.filter((_,x)=>x!==col)]:all}
+     for(const t of toks){const val=F.test(t.trim());if(val!=null)return val}}
+   }return null};
+  for(const [k,F] of Object.entries(FIELDS)){const x=pick(F);if(x!=null)out[k.replace(/2$/,'')]??=x}
+  // fallback pola global
+  const all=lines.join('\n');let m;
+  if(out.distance==null&&(m=all.match(/(\d{1,3}[.,]\d{1,2})\s*(?:km|kilomet)(?!\s*\/)/i)))out.distance=+m[1].replace(',','.');
+  if(out.duration==null){for(const l of lines){if(/20\d{2}/.test(l))continue;if((m=l.match(/\b(\d{1,2}):([0-5]\d):([0-5]\d)\b/))){out.duration=parseDur(m[0]);break}}}
+  if(out.pace==null&&(m=all.match(/(\d{1,2})\s*'\s*([0-5]\d)\s*"/)))out.pace=+m[1]+m[2]/60;
+  if(out.avg_hr==null&&(m=all.match(/(\d{2,3})\s*(?:bpm|kali\s*\/\s*m)/i)))out.avg_hr=+m[1];
+  if(out.avg_cadence==null&&(m=all.match(/(\d{2,3})\s*(?:spm|steps?\s*\/\s*min|langkah\s*\/\s*m)/i)))out.avg_cadence=+m[1];
+  if(out.calories_kcal==null&&(m=all.match(/(\d{2,4})\s*k(?:c|k)al/i)))out.calories_kcal=+m[1];
+  // tanggal & jam
+  const MON={jan:1,feb:2,mar:3,apr:4,mei:5,may:5,jun:6,jul:7,agu:8,agt:8,aug:8,sep:9,okt:10,oct:10,nov:11,des:12,dec:12};let dt=null;
+  for(const l of lines){let a=l.match(/(20\d{2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})/),b=l.match(/(\d{1,2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(20\d{2})/),c=l.toLowerCase().match(/(\d{1,2})\s+([a-z]{3})[a-z]*\.?\s+(20\d{2})/),e=l.toLowerCase().match(/([a-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(20\d{2})/);
+   if(a)dt=[+a[1],+a[2],+a[3]];else if(b)dt=[+b[3],+b[2],+b[1]];else if(c&&MON[c[2]])dt=[+c[3],MON[c[2]],+c[1]];else if(e&&MON[e[1]])dt=[+e[3],MON[e[1]],+e[2]];
+   if(dt){const t=l.replace(/20\d{2}/g,'').match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b(?!\s*[:'])\s*(am|pm)?/i);let hh=t?+t[1]:6;if(t&&t[3]){const pm=/pm/i.test(t[3]);if(pm&&hh<12)hh+=12;if(!pm&&hh===12)hh=0}out.started=`${dt[0]}-${pad(dt[1])}-${pad(dt[2])}T${pad(hh)}:${t?t[2]:'00'}`;break}}
+  const L=all.toLowerCase();out.type=/trail/.test(L)?'trail_run':/(outdoor walk|indoor walk|jalan kaki|berjalan)/.test(L)?'walk':/(run|lari)/.test(L)?'run':null;
+  return out
+ }
+ function fillFromOcr(r,raw){
+  const warn=[];
+  if(r.distance==null&&r.pace&&r.duration)r.distance=+(r.duration/60/r.pace).toFixed(2);
+  if(r.duration==null&&r.pace&&r.distance)r.duration=Math.round(r.pace*r.distance*60);
+  if(r.distance&&r.duration&&r.pace){const calc=r.duration/60/r.distance;if(Math.abs(calc-r.pace)/r.pace>.05)warn.push(`Pace di screenshot ${pStr(r.pace)}/km, hitungan ${pStr(calc)}/km — cek jarak/durasi`)}
+  if(r.max_hr&&r.avg_hr&&r.max_hr<r.avg_hr){[r.max_hr,r.avg_hr]=[r.avg_hr,r.max_hr]}
+  const map={started_at:r.started,activity_type:r.type,distance_km:r.distance?.toFixed(2),duration:r.duration?hms(r.duration):null,avg_hr:r.avg_hr,max_hr:r.max_hr,avg_cadence:r.avg_cadence,elevation_gain_m:r.elevation_gain_m,vo2_max:r.vo2_max,calories_kcal:r.calories_kcal};
+  [...F.elements].forEach(e=>e.classList.remove('ocr'));let got=0;
+  Object.entries(map).forEach(([k,x])=>{if(x==null||x==='')return;const el=F.elements[k];el.value=x;el.classList.add('ocr');el.title='Dibaca dari screenshot — cek sebelum simpan';got++});
+  F.dataset.src='huawei';paceHint();saveDraft();
+  const miss=['distance_km','duration','avg_hr'].filter(k=>map[k]==null).map(k=>({distance_km:'jarak',duration:'durasi',avg_hr:'HR rata-rata'})[k]);
+  if(miss.length)warn.push('Tidak terbaca: '+miss.join(', ')+' — isi manual');
+  $('ocrNote').innerHTML=`<b>${got} data terbaca.</b> Cek kolom hijau, lalu isi RPE, talk test & ankle.${warn.map(w=>`<div>⚠ ${esc(w)}</div>`).join('')}<details style="margin-top:6px"><summary>Teks terbaca</summary><pre class="raw">${esc(raw)}</pre></details>`;
+  $('ocrNote').classList.remove('hidden');(F.elements.rpe).focus({preventScroll:false});
+ }
+ async function ocrFiles(files){
+  files=[...files].filter(f=>f.type.startsWith('image/')).slice(0,3);if(!files.length)return;
+  const btn=$('ocrBtn'),label=btn.textContent;btn.disabled=true;
+  try{
+   btn.textContent='Menyiapkan OCR…';if(!window.Tesseract)await loadScript(TESS);
+   if(!TW){TW=await Tesseract.createWorker('eng');await TW.setParameters({preserve_interword_spaces:'1'})}
+   const merged={},raws=[];
+   for(const [i,f] of files.entries()){btn.textContent=`Membaca ${i+1}/${files.length}…`;const {data}=await TW.recognize(await prep(f));raws.push(data.text);const r=parseHuawei(data.text);for(const k in r)if(merged[k]==null&&r[k]!=null)merged[k]=r[k]}
+   if(files.length>1){const r=parseHuawei(raws.join('\n'));for(const k in r)if(merged[k]==null&&r[k]!=null)merged[k]=r[k]}
+   fillFromOcr(merged,raws.join('\n— — —\n'));
+  }catch(x){toast('OCR gagal: '+x.message)}finally{btn.disabled=false;btn.textContent=label;$('ocrFile').value=''}
+ }
+ $('ocrBtn').onclick=()=>$('ocrFile').click();$('ocrFile').onchange=e=>ocrFiles(e.target.files);
+ const card=$('actCard');['dragenter','dragover'].forEach(t=>card.addEventListener(t,e=>{e.preventDefault();card.classList.add('drop')}));['dragleave','drop'].forEach(t=>card.addEventListener(t,e=>{e.preventDefault();card.classList.remove('drop')}));card.addEventListener('drop',e=>ocrFiles(e.dataTransfer.files));
+ document.addEventListener('paste',e=>{if($('activities').classList.contains('hidden'))return;const fs=[...(e.clipboardData?.files||[])];if(fs.length){e.preventDefault();ocrFiles(fs)}});
+
+ // ================== BERAT, RECOVERY, PROFIL ==================
+ function bodyRows(){const b=S.body;$('bodyRows').innerHTML=b.map(x=>`<tr><td>${x.measured_at}</td><td>${x.weight_kg} kg</td><td>${x.waist_cm??'—'}</td><td>${x.body_fat_pct??'—'}</td></tr>`).join('')||'<tr><td colspan="4">Belum ada data.</td></tr>'}
+ $('bodyForm').elements.measured_at.value=today();$('bodyForm').onsubmit=async e=>{e.preventDefault();let f=e.target;try{let r=await db.from('body_metrics').insert({user_id:user.id,measured_at:v(f,'measured_at'),weight_kg:n(f,'weight_kg'),waist_cm:n(f,'waist_cm'),body_fat_pct:n(f,'body_fat_pct'),muscle_mass_kg:n(f,'muscle_mass_kg'),notes:v(f,'notes'),source:'manual'}).select().single();if(r.error)throw r.error;S.body.push(r.data);S.body.sort(byDateDesc('measured_at'));f.reset();f.elements.measured_at.value=today();toast('Berat tersimpan');bodyRows()}catch(x){toast(x.message)}};
+ $('wellForm').elements.recorded_on.value=today();$('wellForm').onsubmit=async e=>{e.preventDefault();let f=e.target;try{let p={user_id:user.id,recorded_on:v(f,'recorded_on'),sleep_hours:n(f,'sleep_hours'),sleep_quality:n(f,'sleep_quality'),resting_hr:n(f,'resting_hr'),hrv_ms:n(f,'hrv_ms'),fatigue:n(f,'fatigue'),soreness:n(f,'soreness'),stress:n(f,'stress'),steps:n(f,'steps'),ankle_status:v(f,'ankle_status'),notes:v(f,'notes'),source:'manual'};let r=await db.from('daily_wellness').upsert(p,{onConflict:'user_id,recorded_on'}).select().single();if(r.error)throw r.error;S.well=[r.data,...S.well.filter(x=>x.recorded_on!==r.data.recorded_on)].sort(byDateDesc('recorded_on'));toast('Recovery tersimpan — saran diperbarui');page('dashboard')}catch(x){toast(x.message)}};
+ function loadProfile(){const p=S.profile;if(p)Object.entries(p).forEach(([k,val])=>{if($('profileForm').elements[k]&&val!=null)$('profileForm').elements[k].value=val})}
+ $('profileForm').onsubmit=async e=>{e.preventDefault();let f=e.target;try{let p={id:user.id,display_name:v(f,'display_name'),birth_date:v(f,'birth_date'),height_cm:n(f,'height_cm'),target_weight_kg:n(f,'target_weight_kg'),target_5k_minutes:n(f,'target_5k_minutes'),timezone:v(f,'timezone')||'Asia/Jakarta'};let r=await db.from('profiles').upsert(p,{onConflict:'id'}).select().single();if(r.error)throw r.error;S.profile=r.data;toast('Profil tersimpan — zona HR diperbarui')}catch(x){toast(x.message)}};
+
+ // test hook (diabaikan di produksi)
+ window.__runlog={S,parseHuawei,readiness,prescribe,evaluate,judge,PLAN};
+ start();
+})();
+</script></body></html>
